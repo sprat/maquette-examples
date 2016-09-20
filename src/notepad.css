@@ -1,0 +1,16 @@
+.notepad {
+    height: 100%;
+}
+
+.notepad .notepad-text {
+    display: block;
+    width: 100%;
+    height: calc(100% - 2em);
+    margin: 0;
+    padding: 10px;
+}
+
+.notepad .notepad-length {
+    line-height: 1em;
+    margin: 0.5em 0;
+}
