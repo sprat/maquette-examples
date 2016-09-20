@@ -784,150 +784,171 @@
 
 
 },{}],2:[function(require,module,exports){
-var MinSignal = (function(undef){
+'use strict';
 
-    function MinSignal() {
-        this._listeners = [];
-        this.dispatchCount = 0;
+Object.defineProperty(exports, '__esModule', {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+var MiniSignalBinding = (function () {
+  function MiniSignalBinding(fn, once, thisArg) {
+    if (once === undefined) once = false;
+
+    _classCallCheck(this, MiniSignalBinding);
+
+    this._fn = fn;
+    this._once = once;
+    this._thisArg = thisArg;
+    this._next = this._prev = this._owner = null;
+  }
+
+  _createClass(MiniSignalBinding, [{
+    key: 'detach',
+    value: function detach() {
+      if (this._owner === null) return false;
+      this._owner.detach(this);
+      return true;
     }
+  }]);
 
-    var _p = MinSignal.prototype;
+  return MiniSignalBinding;
+})();
 
-    _p.add = add;
-    _p.addOnce = addOnce;
-    _p.remove = remove;
-    _p.dispatch = dispatch;
+function _addMiniSignalBinding(self, node) {
+  if (!self._head) {
+    self._head = node;
+    self._tail = node;
+  } else {
+    self._tail._next = node;
+    node._prev = self._tail;
+    self._tail = node;
+  }
 
-    var ERROR_MESSAGE_MISSING_CALLBACK = 'Callback function is missing!';
+  node._owner = self;
 
-    var _slice = Array.prototype.slice;
+  return node;
+}
 
-    function _sort(list) {
-        list.sort(function(a, b){
-            a = a.p;
-            b = b.p;
-            return b < a ? 1 : a > b ? -1 : 0;
-        });
+var MiniSignal = (function () {
+  function MiniSignal() {
+    _classCallCheck(this, MiniSignal);
+
+    this._head = this._tail = undefined;
+  }
+
+  _createClass(MiniSignal, [{
+    key: 'handlers',
+    value: function handlers() {
+      var exists = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
+
+      var node = this._head;
+
+      if (exists) return !!node;
+
+      var ee = [];
+
+      while (node) {
+        ee.push(node);
+        node = node._next;
+      }
+
+      return ee;
     }
+  }, {
+    key: 'has',
+    value: function has(node) {
+      if (!(node instanceof MiniSignalBinding)) {
+        throw new Error('MiniSignal#has(): First arg must be a MiniSignalBinding object.');
+      }
 
-    /**
-     * Adding callback to the signal
-     * @param {Function} the callback function
-     * @param {object} the context of the callback function
-     * @param {number} priority in the dispatch call. The higher priority it is, the eariler it will be dispatched.
-     * @param {any...} additional argument prefix
-     */
-    function add (fn, context, priority, args) {
-
-        if(!fn) {
-            throw ERROR_MESSAGE_MISSING_CALLBACK;
-        }
-
-        priority = priority || 0;
-        var listeners = this._listeners;
-        var listener, realFn, sliceIndex;
-        var i = listeners.length;
-        while(i--) {
-            listener = listeners[i];
-            if(listener.f === fn && listener.c === context) {
-                return false;
-            }
-        }
-        if(typeof priority === 'function') {
-            realFn = priority;
-            priority = args;
-            sliceIndex = 4;
-        }
-        listeners.unshift({f: fn, c: context, p: priority, r: realFn || fn, a: _slice.call(arguments, sliceIndex || 3), j: 0});
-        _sort(listeners);
+      return node._owner === this;
     }
+  }, {
+    key: 'dispatch',
+    value: function dispatch() {
+      var node = this._head;
 
-    /**
-     * Adding callback to the signal but it will only trigger once
-     * @param {Function} the callback function
-     * @param {object} the context of the callback function
-     * @param {number} priority in the dispatch call. The higher priority it is, the eariler it will be dispatched.
-     * @param {any...} additional argument prefix
-     */
-    function addOnce (fn, context, priority, args) {
+      if (!node) return false;
 
-        if(!fn) {
-            throw ERROR_MESSAGE_MISSING_CALLBACK;
-        }
+      while (node) {
+        if (node._once) this.detach(node);
+        node._fn.apply(node._thisArg, arguments);
+        node = node._next;
+      }
 
-        var self = this;
-        var realFn = function() {
-            self.remove.call(self, fn, context);
-            return fn.apply(context, _slice.call(arguments, 0));
-        };
-        args = _slice.call(arguments, 0);
-        if(args.length === 1) {
-            args.push(undef);
-        }
-        args.splice(2, 0, realFn);
-        add.apply(self, args);
+      return true;
     }
+  }, {
+    key: 'add',
+    value: function add(fn) {
+      var thisArg = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
 
-    /**
-     * Remove callback from the signal
-     * @param {Function} the callback function
-     * @param {object} the context of the callback function
-     * @return {boolean} return true if there is any callback was removed
-     */
-    function remove (fn, context) {
-        if(!fn) {
-            this._listeners.length = 0;
-            return true;
-        }
-        var listeners = this._listeners;
-        var listener;
-        var i = listeners.length;
-        while(i--) {
-            listener = listeners[i];
-            if(listener.f === fn && (!context || (listener.c === context))) {
-                listener.j = 0;
-                listeners.splice(i, 1);
-                return true;
-            }
-        }
-        return false;
+      if (typeof fn !== 'function') {
+        throw new Error('MiniSignal#add(): First arg must be a Function.');
+      }
+      return _addMiniSignalBinding(this, new MiniSignalBinding(fn, false, thisArg));
     }
+  }, {
+    key: 'once',
+    value: function once(fn) {
+      var thisArg = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
 
-
-    /**
-     * Dispatch the callback
-     * @param {any...} additional argument suffix
-     */
-    function dispatch(args) {
-        args = _slice.call(arguments, 0);
-        this.dispatchCount++;
-        var dispatchCount = this.dispatchCount;
-        var listeners = this._listeners;
-        var listener, context, stoppedListener;
-        var i = listeners.length;
-        while(i--) {
-            listener = listeners[i];
-            if(listener && (listener.j < dispatchCount)) {
-                listener.j = dispatchCount;
-                if(listener.r.apply(listener.c, listener.a.concat(args)) === false) {
-                    stoppedListener = listener;
-                    break;
-                }
-            }
-        }
-        listeners = this._listeners;
-        i = listeners.length;
-        while(i--) {
-            listeners[i].j = 0;
-        }
-        return stoppedListener;
+      if (typeof fn !== 'function') {
+        throw new Error('MiniSignal#once(): First arg must be a Function.');
+      }
+      return _addMiniSignalBinding(this, new MiniSignalBinding(fn, true, thisArg));
     }
+  }, {
+    key: 'detach',
+    value: function detach(node) {
+      if (!(node instanceof MiniSignalBinding)) {
+        throw new Error('MiniSignal#detach(): First arg must be a MiniSignalBinding object.');
+      }
+      if (node._owner !== this) return this;
 
-    if (typeof module !== 'undefined') {
-        module.exports = MinSignal;
+      if (node._prev) node._prev._next = node._next;
+      if (node._next) node._next._prev = node._prev;
+
+      if (node === this._head) {
+        this._head = node._next;
+        if (node._next === null) {
+          this._tail = null;
+        }
+      } else if (node === this._tail) {
+        this._tail = node._prev;
+        this._tail._next = null;
+      }
+
+      node._owner = null;
+      return this;
     }
+  }, {
+    key: 'detachAll',
+    value: function detachAll() {
+      var node = this._head;
+      if (!node) return this;
 
-}());
+      this._head = this._tail = null;
+
+      while (node) {
+        node._owner = null;
+        node = node._next;
+      }
+      return this;
+    }
+  }]);
+
+  return MiniSignal;
+})();
+
+MiniSignal.MiniSignalBinding = MiniSignalBinding;
+
+exports['default'] = MiniSignal;
+module.exports = exports['default'];
 
 },{}],3:[function(require,module,exports){
 var Menu = require('./menu');
@@ -1056,7 +1077,7 @@ module.exports = {
 };
 
 },{"./application":3,"./counter":4,"./htmlview":5,"./mountpoint":8,"./notepad":9,"./page":10}],7:[function(require,module,exports){
-var Signal = require('min-signal');
+var Signal = require('mini-signals');
 
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
@@ -1098,7 +1119,7 @@ function Menu(items) {
 
 module.exports = Menu;
 
-},{"min-signal":2}],8:[function(require,module,exports){
+},{"mini-signals":2}],8:[function(require,module,exports){
 var maquette = require('maquette');
 var h = maquette.h;
 

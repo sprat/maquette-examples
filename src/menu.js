@@ -1,4 +1,4 @@
-var Signal = require('min-signal');
+var Signal = require('mini-signals');
 
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight

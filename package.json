@@ -28,6 +28,6 @@
   },
   "dependencies": {
     "maquette": "^2.3.5",
-    "min-signal": "0.0.6"
+    "mini-signals": "^1.1.1"
   }
 }
