@@ -816,7 +816,7 @@ function Application(title, pages) {
 
 module.exports = Application;
 
-},{"./menu":5}],3:[function(require,module,exports){
+},{"./menu":6}],3:[function(require,module,exports){
 /*
  * The Counter component shows a simple integer value with +/- buttons around it
  * for incrementing or decrementing the value
@@ -861,26 +861,45 @@ function Counter() {
 module.exports = Counter;
 
 },{}],4:[function(require,module,exports){
+/*
+ * The HTMLView component renders a string containing some HTML. Beware of XSS attacks.
+ */
+function HTMLView(html) {
+    // rendering function
+    function render(h) {
+        return h('div.htmlview', { innerHTML: html });
+    }
+
+    return {
+        render: render
+    };
+}
+
+module.exports = HTMLView;
+
+},{}],5:[function(require,module,exports){
 var MountPoint = require('./mountpoint');
 var Application = require('./application');
 var Page = require('./page');
+var HTMLView = require('./htmlview');
 var Counter = require('./counter');
 var Notepad = require('./notepad');
-//var HTMLView = require('./htmlview');
 
 function run() {
     var node = document.getElementById('application');
+    var aboutHTML = node.innerHTML;
 
     // create a mount point for the Application component
     var mountPoint = MountPoint(node);
 
     // create some pages
-    //var about = Page('About', HTMLView(contentHTML));
+    var about = Page('About', HTMLView(aboutHTML));
     var counter = Page('Counter', Counter());
     var notepad = Page('Notepad', Notepad());
 
     // create the application component
-    var application = Application('DOMned', [counter, notepad]);
+    var title = document.querySelector('title').textContent;
+    var application = Application(title, [about, counter, notepad]);
 
     // mount the Application in the mount point
     mountPoint.mount(application);
@@ -890,7 +909,7 @@ module.exports = {
     run: run
 };
 
-},{"./application":2,"./counter":3,"./mountpoint":6,"./notepad":7,"./page":8}],5:[function(require,module,exports){
+},{"./application":2,"./counter":3,"./htmlview":4,"./mountpoint":7,"./notepad":8,"./page":9}],6:[function(require,module,exports){
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
  */
@@ -930,7 +949,7 @@ function Menu(items, onItemSelected) {
 
 module.exports = Menu;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var maquette = require('maquette');
 var h = maquette.h;
 
@@ -961,7 +980,7 @@ function MountPoint(node) {
 
 module.exports = MountPoint;
 
-},{"maquette":1}],7:[function(require,module,exports){
+},{"maquette":1}],8:[function(require,module,exports){
 /*
  * The Notepad component implements a simple text area whose content is persisted in the local storage of the
  * browser and synchronized between browser tabs. It also shows a character counter.
@@ -1040,7 +1059,7 @@ function PersistentValue(key, storage) {
 
 module.exports = Notepad;
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 function Page(name, component) {
     return {
         name: name,
@@ -1050,6 +1069,6 @@ function Page(name, component) {
 
 module.exports = Page;
 
-},{}]},{},[4])(4)
+},{}]},{},[5])(5)
 });
 //# sourceMappingURL=app.js.map
