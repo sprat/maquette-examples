@@ -818,8 +818,8 @@ module.exports = Application;
 
 },{"./menu":5}],3:[function(require,module,exports){
 /*
- * The Counter component shows a simple integer value with +/- buttons around it for incrementing or decrementing
- * the value
+ * The Counter component shows a simple integer value with +/- buttons around it
+ * for incrementing or decrementing the value
  */
 function Counter() {
     var value = 0;
@@ -837,19 +837,9 @@ function Counter() {
     }
 
     function render(h) {
-        var incrementButton = h('button.counter-incr', '+');
-        var decrementButton = h('button.counter-decr', '-');
+        var incrementButton = h('button.counter-incr', { onclick: increment }, '+');
+        var decrementButton = h('button.counter-decr', { onclick: decrement }, '-');
         var valueSpan = h('span.counter-value', value);
-
-        incrementButton.on('click', function () {
-            increment();  // increment the counter value
-            h.update();  // refresh the view
-        });
-
-        decrementButton.on('click', function () {
-            decrement();  // decrement the counter value
-            h.update();  // refresh the view
-        });
 
         return h('div.counter', [
             decrementButton,
@@ -871,16 +861,18 @@ function Counter() {
 module.exports = Counter;
 
 },{}],4:[function(require,module,exports){
+var MountPoint = require('./mountpoint');
 var Application = require('./application');
 var Page = require('./page');
-//var HTMLView = require('./htmlview');
 var Counter = require('./counter');
+//var HTMLView = require('./htmlview');
 //var Notepad = require('./notepad');
-var mount = require('./mount');
 
 function run() {
-    var contentElement = document.getElementById('content');
-    //var contentHTML = contentElement.innerHTML;
+    var node = document.getElementById('application');
+
+    // create a mount point for the Application component
+    var mountPoint = MountPoint(node);
 
     // create some pages
     //var about = Page('About', HTMLView(contentHTML));
@@ -890,44 +882,47 @@ function run() {
     // create the application component
     var application = Application('DOMned', [counter]);  //[about, counter, notepad]
 
-    // create a view of the application component and mount it in the
-    // content element
-    mount(contentElement, application.render);
+    mountPoint.mount(application);
 }
 
 module.exports = {
     run: run
 };
 
-},{"./application":2,"./counter":3,"./mount":6,"./page":7}],5:[function(require,module,exports){
+},{"./application":2,"./counter":3,"./mountpoint":6,"./page":7}],5:[function(require,module,exports){
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
  */
 function Menu(items, onItemSelected) {
     var selectedItem;
 
-    function selectItem(name) {
+    function select(name) {
         selectedItem = name;
         if (onItemSelected) {
             onItemSelected(name);
         }
     }
 
+    function onclick(event) {
+        var item = event.target.textContent;
+        select(item);
+    }
+
     function render(h) {
-        return h('div.menu', items.map(function (item) {
-            var selectedClass = (item === selectedItem) ? '.selected' : '';
-            return h('a.menu-item' + selectedClass, item).on('click', function() {
-                selectItem(item);
-                h.update();
-            });
-        }, this));
+        var renderedItems = items.map(function (item) {
+            var classes = {
+                selected: (item === selectedItem)
+            };
+            return h('a.menu-item', { classes: classes }, item);
+        });
+        return h('div.menu', { onclick: onclick }, renderedItems);
     }
 
     // select the first item by default
-    selectItem(items[0]);
+    select(items[0]);
 
     return {
-        selectItem: selectItem,
+        select: select,
         render: render
     };
 }
@@ -936,33 +931,34 @@ module.exports = Menu;
 
 },{}],6:[function(require,module,exports){
 var maquette = require('maquette');
+var h = maquette.h;
 
-/* our custom hyperscript function */
-function Hyperscript(projector) {
-    var h = function() {
-        var vnode = maquette.h.apply(null, arguments);
-        // TODO: is this helper function really needed?
-        vnode.on = function (name, callback) {
-            this.properties = this.properties || {};
-            this.properties['on' + name] = callback;
-        };
-        return vnode;
-    };
-
-    h.update = projector.scheduleRender;
-
-    return h;
-}
-
-function mount(node, render) {
+function MountPoint(node) {
     var projector = maquette.createProjector();
-    var h = Hyperscript(projector);
-    projector.replace(node, function() {
-        return render(h);
-    });
+    var update = projector.scheduleRender;
+    var _render;
+
+    function mount(component) {
+        _render = function renderRoot() {
+            return component.render(h);
+        };
+
+        projector.replace(node, _render);
+    }
+
+    function unmount() {
+        projector.detach(_render);
+        _render = undefined;
+    }
+
+    return {
+        mount: mount,
+        unmount: unmount,
+        update: update
+    };
 }
 
-module.exports = mount;
+module.exports = MountPoint;
 
 },{"maquette":1}],7:[function(require,module,exports){
 function Page(name, component) {

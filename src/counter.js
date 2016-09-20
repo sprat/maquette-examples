@@ -1,6 +1,6 @@
 /*
- * The Counter component shows a simple integer value with +/- buttons around it for incrementing or decrementing
- * the value
+ * The Counter component shows a simple integer value with +/- buttons around it
+ * for incrementing or decrementing the value
  */
 function Counter() {
     var value = 0;
@@ -18,19 +18,9 @@ function Counter() {
     }
 
     function render(h) {
-        var incrementButton = h('button.counter-incr', '+');
-        var decrementButton = h('button.counter-decr', '-');
+        var incrementButton = h('button.counter-incr', { onclick: increment }, '+');
+        var decrementButton = h('button.counter-decr', { onclick: decrement }, '-');
         var valueSpan = h('span.counter-value', value);
-
-        incrementButton.on('click', function () {
-            increment();  // increment the counter value
-            h.update();  // refresh the view
-        });
-
-        decrementButton.on('click', function () {
-            decrement();  // decrement the counter value
-            h.update();  // refresh the view
-        });
 
         return h('div.counter', [
             decrementButton,

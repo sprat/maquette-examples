@@ -4,28 +4,33 @@
 function Menu(items, onItemSelected) {
     var selectedItem;
 
-    function selectItem(name) {
+    function select(name) {
         selectedItem = name;
         if (onItemSelected) {
             onItemSelected(name);
         }
     }
 
+    function onclick(event) {
+        var item = event.target.textContent;
+        select(item);
+    }
+
     function render(h) {
-        return h('div.menu', items.map(function (item) {
-            var selectedClass = (item === selectedItem) ? '.selected' : '';
-            return h('a.menu-item' + selectedClass, item).on('click', function() {
-                selectItem(item);
-                h.update();
-            });
-        }, this));
+        var renderedItems = items.map(function (item) {
+            var classes = {
+                selected: (item === selectedItem)
+            };
+            return h('a.menu-item', { classes: classes }, item);
+        });
+        return h('div.menu', { onclick: onclick }, renderedItems);
     }
 
     // select the first item by default
-    selectItem(items[0]);
+    select(items[0]);
 
     return {
-        selectItem: selectItem,
+        select: select,
         render: render
     };
 }

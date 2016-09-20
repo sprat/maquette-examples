@@ -1,13 +1,15 @@
+var MountPoint = require('./mountpoint');
 var Application = require('./application');
 var Page = require('./page');
-//var HTMLView = require('./htmlview');
 var Counter = require('./counter');
+//var HTMLView = require('./htmlview');
 //var Notepad = require('./notepad');
-var mount = require('./mount');
 
 function run() {
-    var contentElement = document.getElementById('content');
-    //var contentHTML = contentElement.innerHTML;
+    var node = document.getElementById('application');
+
+    // create a mount point for the Application component
+    var mountPoint = MountPoint(node);
 
     // create some pages
     //var about = Page('About', HTMLView(contentHTML));
@@ -17,9 +19,7 @@ function run() {
     // create the application component
     var application = Application('DOMned', [counter]);  //[about, counter, notepad]
 
-    // create a view of the application component and mount it in the
-    // content element
-    mount(contentElement, application.render);
+    mountPoint.mount(application);
 }
 
 module.exports = {
