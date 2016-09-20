@@ -1,19 +1,20 @@
+var Signal = require('min-signal');
+
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
  */
-function Menu(items, onItemSelected) {
+function Menu(items) {
+    var onItemSelected = new Signal();
     var selectedItem;
 
-    function select(name) {
+    function selectItem(name) {
         selectedItem = name;
-        if (onItemSelected) {
-            onItemSelected(name);
-        }
+        onItemSelected.dispatch(name);
     }
 
     function onclick(event) {
         var item = event.target.textContent;
-        select(item);
+        selectItem(item);
     }
 
     function render(h) {
@@ -27,10 +28,12 @@ function Menu(items, onItemSelected) {
     }
 
     // select the first item by default
-    select(items[0]);
+    selectItem(items[0]);
 
     return {
-        select: select,
+        get selectedItem() { return selectedItem; },
+        set selectedItem(value) { selectItem(value); },
+        onItemSelected: onItemSelected,
         render: render
     };
 }

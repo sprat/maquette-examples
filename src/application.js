@@ -2,16 +2,16 @@ var Menu = require('./menu');
 
 function Application(title, pages) {
     var components = {};
-    var content;
-
     var menuItems = pages.map(function (page) {
         var name = page.name;
         components[name] = page.component;
         return name;
     });
 
-    // TODO: don't pass a callback here but allow us to declare an event handler in the render function...
-    var menu = Menu(menuItems, function (name) {
+    var menu = Menu(menuItems);
+    var content = components[menu.selectedItem];
+
+    menu.onItemSelected.add(function (name) {
         content = components[name];
     });
 

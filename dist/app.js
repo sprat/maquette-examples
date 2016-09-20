@@ -784,20 +784,166 @@
 
 
 },{}],2:[function(require,module,exports){
+var MinSignal = (function(undef){
+
+    function MinSignal() {
+        this._listeners = [];
+        this.dispatchCount = 0;
+    }
+
+    var _p = MinSignal.prototype;
+
+    _p.add = add;
+    _p.addOnce = addOnce;
+    _p.remove = remove;
+    _p.dispatch = dispatch;
+
+    var ERROR_MESSAGE_MISSING_CALLBACK = 'Callback function is missing!';
+
+    var _slice = Array.prototype.slice;
+
+    function _sort(list) {
+        list.sort(function(a, b){
+            a = a.p;
+            b = b.p;
+            return b < a ? 1 : a > b ? -1 : 0;
+        });
+    }
+
+    /**
+     * Adding callback to the signal
+     * @param {Function} the callback function
+     * @param {object} the context of the callback function
+     * @param {number} priority in the dispatch call. The higher priority it is, the eariler it will be dispatched.
+     * @param {any...} additional argument prefix
+     */
+    function add (fn, context, priority, args) {
+
+        if(!fn) {
+            throw ERROR_MESSAGE_MISSING_CALLBACK;
+        }
+
+        priority = priority || 0;
+        var listeners = this._listeners;
+        var listener, realFn, sliceIndex;
+        var i = listeners.length;
+        while(i--) {
+            listener = listeners[i];
+            if(listener.f === fn && listener.c === context) {
+                return false;
+            }
+        }
+        if(typeof priority === 'function') {
+            realFn = priority;
+            priority = args;
+            sliceIndex = 4;
+        }
+        listeners.unshift({f: fn, c: context, p: priority, r: realFn || fn, a: _slice.call(arguments, sliceIndex || 3), j: 0});
+        _sort(listeners);
+    }
+
+    /**
+     * Adding callback to the signal but it will only trigger once
+     * @param {Function} the callback function
+     * @param {object} the context of the callback function
+     * @param {number} priority in the dispatch call. The higher priority it is, the eariler it will be dispatched.
+     * @param {any...} additional argument prefix
+     */
+    function addOnce (fn, context, priority, args) {
+
+        if(!fn) {
+            throw ERROR_MESSAGE_MISSING_CALLBACK;
+        }
+
+        var self = this;
+        var realFn = function() {
+            self.remove.call(self, fn, context);
+            return fn.apply(context, _slice.call(arguments, 0));
+        };
+        args = _slice.call(arguments, 0);
+        if(args.length === 1) {
+            args.push(undef);
+        }
+        args.splice(2, 0, realFn);
+        add.apply(self, args);
+    }
+
+    /**
+     * Remove callback from the signal
+     * @param {Function} the callback function
+     * @param {object} the context of the callback function
+     * @return {boolean} return true if there is any callback was removed
+     */
+    function remove (fn, context) {
+        if(!fn) {
+            this._listeners.length = 0;
+            return true;
+        }
+        var listeners = this._listeners;
+        var listener;
+        var i = listeners.length;
+        while(i--) {
+            listener = listeners[i];
+            if(listener.f === fn && (!context || (listener.c === context))) {
+                listener.j = 0;
+                listeners.splice(i, 1);
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    /**
+     * Dispatch the callback
+     * @param {any...} additional argument suffix
+     */
+    function dispatch(args) {
+        args = _slice.call(arguments, 0);
+        this.dispatchCount++;
+        var dispatchCount = this.dispatchCount;
+        var listeners = this._listeners;
+        var listener, context, stoppedListener;
+        var i = listeners.length;
+        while(i--) {
+            listener = listeners[i];
+            if(listener && (listener.j < dispatchCount)) {
+                listener.j = dispatchCount;
+                if(listener.r.apply(listener.c, listener.a.concat(args)) === false) {
+                    stoppedListener = listener;
+                    break;
+                }
+            }
+        }
+        listeners = this._listeners;
+        i = listeners.length;
+        while(i--) {
+            listeners[i].j = 0;
+        }
+        return stoppedListener;
+    }
+
+    if (typeof module !== 'undefined') {
+        module.exports = MinSignal;
+    }
+
+}());
+
+},{}],3:[function(require,module,exports){
 var Menu = require('./menu');
 
 function Application(title, pages) {
     var components = {};
-    var content;
-
     var menuItems = pages.map(function (page) {
         var name = page.name;
         components[name] = page.component;
         return name;
     });
 
-    // TODO: don't pass a callback here but allow us to declare an event handler in the render function...
-    var menu = Menu(menuItems, function (name) {
+    var menu = Menu(menuItems);
+    var content = components[menu.selectedItem];
+
+    menu.onItemSelected.add(function (name) {
         content = components[name];
     });
 
@@ -816,7 +962,7 @@ function Application(title, pages) {
 
 module.exports = Application;
 
-},{"./menu":6}],3:[function(require,module,exports){
+},{"./menu":7}],4:[function(require,module,exports){
 /*
  * The Counter component shows a simple integer value with +/- buttons around it
  * for incrementing or decrementing the value
@@ -860,7 +1006,7 @@ function Counter() {
 
 module.exports = Counter;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 /*
  * The HTMLView component renders a string containing some HTML. Beware of XSS attacks.
  */
@@ -877,7 +1023,7 @@ function HTMLView(html) {
 
 module.exports = HTMLView;
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 var MountPoint = require('./mountpoint');
 var Application = require('./application');
 var Page = require('./page');
@@ -909,23 +1055,24 @@ module.exports = {
     run: run
 };
 
-},{"./application":2,"./counter":3,"./htmlview":4,"./mountpoint":7,"./notepad":8,"./page":9}],6:[function(require,module,exports){
+},{"./application":3,"./counter":4,"./htmlview":5,"./mountpoint":8,"./notepad":9,"./page":10}],7:[function(require,module,exports){
+var Signal = require('min-signal');
+
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
  */
-function Menu(items, onItemSelected) {
+function Menu(items) {
+    var onItemSelected = new Signal();
     var selectedItem;
 
-    function select(name) {
+    function selectItem(name) {
         selectedItem = name;
-        if (onItemSelected) {
-            onItemSelected(name);
-        }
+        onItemSelected.dispatch(name);
     }
 
     function onclick(event) {
         var item = event.target.textContent;
-        select(item);
+        selectItem(item);
     }
 
     function render(h) {
@@ -939,17 +1086,19 @@ function Menu(items, onItemSelected) {
     }
 
     // select the first item by default
-    select(items[0]);
+    selectItem(items[0]);
 
     return {
-        select: select,
+        get selectedItem() { return selectedItem; },
+        set selectedItem(value) { selectItem(value); },
+        onItemSelected: onItemSelected,
         render: render
     };
 }
 
 module.exports = Menu;
 
-},{}],7:[function(require,module,exports){
+},{"min-signal":2}],8:[function(require,module,exports){
 var maquette = require('maquette');
 var h = maquette.h;
 
@@ -980,7 +1129,7 @@ function MountPoint(node) {
 
 module.exports = MountPoint;
 
-},{"maquette":1}],8:[function(require,module,exports){
+},{"maquette":1}],9:[function(require,module,exports){
 /*
  * The Notepad component implements a simple text area whose content is persisted in the local storage of the
  * browser and synchronized between browser tabs. It also shows a character counter.
@@ -1059,7 +1208,7 @@ function PersistentValue(key, storage) {
 
 module.exports = Notepad;
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 function Page(name, component) {
     return {
         name: name,
@@ -1069,6 +1218,6 @@ function Page(name, component) {
 
 module.exports = Page;
 
-},{}]},{},[5])(5)
+},{}]},{},[6])(6)
 });
 //# sourceMappingURL=app.js.map
