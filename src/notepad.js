@@ -5,19 +5,17 @@
 function Notepad() {
     var textValue = new PersistentValue('notepad');
 
+    function oninput(event) {
+        textValue.set(event.target.value);
+    }
+
     function render(h) {
         var content = textValue.get() || '';
 
         var textarea = h('textarea.notepad-text', {
-            attrs: {
-                placeholder: 'Enter text here...',
-                value: content
-            }
-        });
-
-        textarea.on('input', function (event) {
-            textValue.set(event.target.value);
-            h.update();
+            placeholder: 'Enter text here...',
+            value: content,
+            oninput: oninput
         });
 
         var counter = h('div.counter', [

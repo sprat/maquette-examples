@@ -865,8 +865,8 @@ var MountPoint = require('./mountpoint');
 var Application = require('./application');
 var Page = require('./page');
 var Counter = require('./counter');
+var Notepad = require('./notepad');
 //var HTMLView = require('./htmlview');
-//var Notepad = require('./notepad');
 
 function run() {
     var node = document.getElementById('application');
@@ -877,11 +877,12 @@ function run() {
     // create some pages
     //var about = Page('About', HTMLView(contentHTML));
     var counter = Page('Counter', Counter());
-    //var notepad = Page('Notepad', Notepad());
+    var notepad = Page('Notepad', Notepad());
 
     // create the application component
-    var application = Application('DOMned', [counter]);  //[about, counter, notepad]
+    var application = Application('DOMned', [counter, notepad]);
 
+    // mount the Application in the mount point
     mountPoint.mount(application);
 }
 
@@ -889,7 +890,7 @@ module.exports = {
     run: run
 };
 
-},{"./application":2,"./counter":3,"./mountpoint":6,"./page":7}],5:[function(require,module,exports){
+},{"./application":2,"./counter":3,"./mountpoint":6,"./notepad":7,"./page":8}],5:[function(require,module,exports){
 /*
  * The menu component shows a list of items horizontally, with a selected item highlight
  */
@@ -961,6 +962,85 @@ function MountPoint(node) {
 module.exports = MountPoint;
 
 },{"maquette":1}],7:[function(require,module,exports){
+/*
+ * The Notepad component implements a simple text area whose content is persisted in the local storage of the
+ * browser and synchronized between browser tabs. It also shows a character counter.
+ */
+function Notepad() {
+    var textValue = new PersistentValue('notepad');
+
+    function oninput(event) {
+        textValue.set(event.target.value);
+    }
+
+    function render(h) {
+        var content = textValue.get() || '';
+
+        var textarea = h('textarea.notepad-text', {
+            placeholder: 'Enter text here...',
+            value: content,
+            oninput: oninput
+        });
+
+        var counter = h('div.counter', [
+            'Length: ',
+            h('span.counter-value', [content.length])
+        ]);
+
+        return h('div.notepad', [textarea, counter]);
+        // TODO: hook textValue.onChangeHook(h.update)
+    }
+
+    return {
+        render: render
+    };
+}
+
+
+/*
+ * Utility class to persist a value in the localStorage
+ *
+ * It also implements a hook in order to receive storage events from the localStorage
+ */
+function PersistentValue(key, storage) {
+    storage = storage || localStorage;
+
+    function get() {
+        return storage.getItem(key);
+    }
+
+    function set(data) {
+        storage.setItem(key, data);
+    }
+
+    function onChangeHook(callback) {
+        function storageListener(event) {
+            if ((event.storageArea === storage) && (event.key === key)) {
+                callback();
+            }
+        }
+
+        return {
+            create: function() {
+                window.addEventListener('storage', storageListener);
+            },
+            remove: function(vnode, remove) {
+                window.removeEventListener('storage', storageListener);
+                remove();
+            }
+        };
+    }
+
+    return {
+        get: get,
+        set: set,
+        onChangeHook: onChangeHook
+    };
+}
+
+module.exports = Notepad;
+
+},{}],8:[function(require,module,exports){
 function Page(name, component) {
     return {
         name: name,
